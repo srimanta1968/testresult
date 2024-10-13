@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const region = process.env.awsregion;
-const logGroupName = `/ecs/${process.env.CONTAINER_NAME}`;
+const logGroupName = `/ecs/${process.env.CONTAINER_NAME}-${objid}`;
 const logStreamName = `ecs/${process.env.CONTAINER_NAME}`; // Ensure this matches your log configuration
 const bucketName = process.env.bucket;
 const reportPath = process.env.reportpath;
