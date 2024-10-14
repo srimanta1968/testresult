@@ -17,9 +17,8 @@ AWS.config.update({
   secretAccessKey: secretAccessKey,
 });
 
-const readAndUploadLog = async (logFileName) => {
+const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
-    const logFilePath = path.join("/repo", logFileName); // Path to the log file
     const logData = fs.readFileSync(logFilePath, "utf8"); // Read the log file
     const s3 = new AWS.S3();
     const keyName = `logs/${containerName}_${suiteId}_${logFileName}`; // Unique S3 key for each log file
@@ -39,8 +38,8 @@ const readAndUploadLog = async (logFileName) => {
 };
 
 const uploadAllLogs = async () => {
-  await readAndUploadLog("testlog.log"); // Upload testlog.log
-  await readAndUploadLog("alllogs.log"); // Upload alllogs.log
+  await readAndUploadLog("/repo/testlog.log", "testlog.log"); // Upload testlog.log
+  await readAndUploadLog("/usr/scripts/alllogs.log", "alllogs.log"); // Upload alllogs.log
 };
 
 uploadAllLogs();
