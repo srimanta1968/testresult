@@ -3,19 +3,17 @@ const fs = require("fs");
 const path = require("path");
 
 const region = process.env.awsregion;
-const logGroupName = `/ecs/${process.env.CONTAINER_NAME}-${process.env.suiteid}`;
-const logStreamName = `ecs/${process.env.CONTAINER_NAME}`; // Ensure this matches your log configuration
+const logGroupName = `/ecs/${process.env.containername}-${process.env.suiteid}`;
+const logStreamName = `ecs/${process.env.containername}`; // Ensure this matches your log configuration
 const bucketName = process.env.bucket;
 const reportPath = process.env.reportpath;
-const containerName = process.env.CONTAINER_NAME;
+const containerName = process.env.containername;
 const suiteId = process.env.suiteid;
 
 console.log("suiteId=" + suiteId);
-
 console.log("bucketName=" + bucketName);
 
 AWS.config.update({ region: region });
-
 const cloudWatchLogs = new AWS.CloudWatchLogs();
 
 async function getLogEvents() {
