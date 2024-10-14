@@ -3,37 +3,18 @@ const fs = require("fs");
 const path = require("path");
 
 const region = process.env.awsregion;
-const logGroupName = `/ecs/${process.env.containername}-${process.env.suiteid}`;
-const logStreamName = `ecs/${process.env.containername}`; // Ensure this matches your log configuration
 const bucketName = process.env.bucket;
 const reportPath = process.env.reportpath;
 const containerName = process.env.containername;
 const suiteId = process.env.suiteid;
 
-console.log("suiteId=" + suiteId);
-console.log("bucketName=" + bucketName);
-
 AWS.config.update({ region: region });
-const cloudWatchLogs = new AWS.CloudWatchLogs();
 
-async function getLogEvents() {
+const readAndUploadLog = async () => {
   try {
-    const params = {
-      logGroupName,
-      logStreamName,
-      startFromHead: true,
-    };
-
-    const data = await cloudWatchLogs.getLogEvents(params).promise();
-    console.log("Log events:", data.events);
-
-    const logData = data.events.map((event) => event.message).join("\n");
-    const logFilePath = path.join(reportPath, "cloudwatch-logs.txt"); // Adjust the path as needed
-
-    fs.writeFileSync(logFilePath, logData, "utf8");
-    console.log("Logs saved to:", logFilePath);
-
-    // Upload the logs to S3
+    const logFilePath = path.join("/repo", "test.log"); // Path to the log file
+    const logData = fs.readFileSync(logFilePath, "utf8"); // Read the log file
+    console.log("logData=" + logData);
     const s3 = new AWS.S3();
     const keyName = `logs/${containerName}_${suiteId}.log`;
 
@@ -45,13 +26,12 @@ async function getLogEvents() {
       })
       .promise();
 
-    console.log("Log file successfully uploaded to S3:", keyName);
-
     const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${keyName}`;
+    console.log("Log file successfully uploaded to S3:", keyName);
     console.log("Access the log file at:", s3Url);
   } catch (error) {
-    console.error("Error fetching logs:", error);
+    console.error("Error reading or uploading logs:", error);
   }
-}
+};
 
-getLogEvents();
+readAndUploadLog();
