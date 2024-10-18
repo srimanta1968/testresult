@@ -139,7 +139,7 @@ const updateTestResult = async (
 const uploadAllLogs = async () => {
   try {
     const testlogurl = await readAndUploadLog(
-      "/repo/testlog.log",
+      "/usr/scripts/testlog.log",
       "testlog.log"
     );
     const scriptlogurl = await readAndUploadLog(
@@ -154,7 +154,7 @@ const uploadAllLogs = async () => {
       testlogurl,
       scriptlogurl,
       resultlogurl,
-      "/repo/testlog.log"
+      "/usr/scripts/testlog.log"
     );
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
