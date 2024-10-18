@@ -103,6 +103,8 @@ const updateTestResult = async (
       failedcnt: failed,
       skippedcnt: skipped,
     };
+
+    console.log("calling  updateTestResult:", JSON.stringify(data));
     const response = await axios.post(
       `${api_result_uri}/docker/update-testresult`,
       data,
