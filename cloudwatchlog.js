@@ -3,6 +3,8 @@ const fs = require("fs");
 const axios = require("axios");
 
 // Ensure these are securely managed in production
+require("dotenv").config();
+
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 const region = process.env.awsregion;
@@ -23,20 +25,24 @@ AWS.config.update({
 
 const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
-    const logData = fs.readFileSync(logFilePath, "utf8");
-    const s3 = new AWS.S3();
-    const keyName = `logs/${containerName}_${suiteId}_${logFileName}`;
-    await s3
-      .putObject({
-        Bucket: bucketName,
-        Key: keyName,
-        Body: logData,
-      })
-      .promise();
-    const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${keyName}`;
-    console.log("Log file successfully uploaded to S3:", keyName);
-    console.log("Access the log file at:", s3Url);
-    return s3Url;
+    if (fs.existsSync(logFilePath)) {
+      const logData = fs.readFileSync(logFilePath, "utf8");
+      const s3 = new AWS.S3();
+      const keyName = `logs/${containerName}_${suiteId}_${logFileName}`;
+      await s3
+        .putObject({
+          Bucket: bucketName,
+          Key: keyName,
+          Body: logData,
+        })
+        .promise();
+      const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${keyName}`;
+      console.log("Log file successfully uploaded to S3:", keyName);
+      console.log("Access the log file at:", s3Url);
+      return s3Url;
+    } else {
+      console.error(`File ${logFilePath} does not exist.`);
+    }
   } catch (error) {
     console.error(`Error reading or uploading ${logFileName}:`, error);
   }
@@ -49,35 +55,39 @@ const updateLogAndTestResult = async (
   logFilePath
 ) => {
   try {
-    const logData = fs.readFileSync(logFilePath, "utf8");
-    let totalTest = 0;
-    let passed = 0;
-    let failed = 0;
-    let skipped = 0;
-    const logLines = logData.split("\n");
-    logLines.forEach((line) => {
-      if (line.includes("Scenario:")) {
-        totalTest++;
-      }
-      if (line.includes("✖")) {
-        failed++;
-      }
-      if (line.includes("✔")) {
-        passed++;
-      }
-      if (line.includes("skipped") || line.includes("pending")) {
-        skipped++;
-      }
-    });
-    await updateTestResult(
-      testlogurl,
-      scriptlogurl,
-      resultlogurl,
-      totalTest,
-      passed,
-      failed,
-      skipped
-    );
+    if (fs.existsSync(logFilePath)) {
+      const logData = fs.readFileSync(logFilePath, "utf8");
+      let totalTest = 0;
+      let passed = 0;
+      let failed = 0;
+      let skipped = 0;
+      const logLines = logData.split("\n");
+      logLines.forEach((line) => {
+        if (line.includes("Scenario:")) {
+          totalTest++;
+        }
+        if (line.includes("✖")) {
+          failed++;
+        }
+        if (line.includes("✔")) {
+          passed++;
+        }
+        if (line.includes("skipped") || line.includes("pending")) {
+          skipped++;
+        }
+      });
+      await updateTestResult(
+        testlogurl,
+        scriptlogurl,
+        resultlogurl,
+        totalTest,
+        passed,
+        failed,
+        skipped
+      );
+    } else {
+      console.error(`Log file ${logFilePath} does not exist.`);
+    }
   } catch (error) {
     console.error("Error reading log file or updating test results:", error);
   }
@@ -103,8 +113,7 @@ const updateTestResult = async (
       failedcnt: failed,
       skippedcnt: skipped,
     };
-
-    console.log("calling  updateTestResult:", JSON.stringify(data));
+    console.log("Calling updateTestResult:", JSON.stringify(data));
     const response = await axios.post(
       `${api_result_uri}/docker/update-testresult`,
       data,
