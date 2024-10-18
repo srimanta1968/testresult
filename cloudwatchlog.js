@@ -119,7 +119,7 @@ const updateTestResult = async (
       data,
       {
         headers: {
-          Authorization: `Bearer ${authorization}`,
+          Authorization: `${authorization}`,
           x_account_id: x_account_id,
           x_groupuser_id: x_groupuser_id,
           x_poolindex: x_poolindex,
