@@ -15,33 +15,14 @@ const x_groupuser_id = process.env.x_groupuser_id;
 const x_account_id = process.env.x_account_id;
 const api_result_uri = process.env.api_result_uri;
 const rootDir = process.env.rootDir;
-const resultFolderName = process.env.resultFolderName;
-const resultFilePattern = process.env.resultFilePattern || ".*\\.(html|pdf)$";
-const videoFolderName = process.env.videoFolderName;
+const resultFilePath = process.env.resultFilePath || ".*\\.(html|pdf)$";
+const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
 let urls = [];
 
-// Function to search for a folder recursively
-const findFolder = (dir, folderName) => {
-  const list = fs.readdirSync(dir);
-
-  for (const file of list) {
-    const filePath = path.resolve(dir, file);
-    const stat = fs.statSync(filePath);
-
-    if (stat && stat.isDirectory()) {
-      if (path.basename(filePath) === folderName) {
-        return filePath;
-      }
-      const found = findFolder(filePath, folderName);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
+// Function to search for files recursively based on pattern
 const getFiles = (dir, pattern) => {
   const regex = new RegExp(pattern);
   let results = [];
@@ -133,7 +114,6 @@ const updateLogAndTestResult = async (
     console.error("Error reading log file or updating test results:", error);
   }
 };
-
 const updateTestResult = async (
   testlogurl,
   scriptlogurl,
@@ -193,27 +173,21 @@ const uploadAllLogs = async () => {
     );
     urls.push(scriptlogurl);
 
-    // Find result directory recursively
-    const resultDir = findFolder(rootDir, resultFolderName);
-    const resultFiles = resultFilePattern
-      ? getFiles(resultDir, resultFilePattern)
-      : getFiles(resultDir, ".*\\.(html|pdf)$");
+    // Find result files recursively
+    const resultFiles = getFiles(rootDir, resultFilePath);
 
     for (const file of resultFiles) {
-      const filePath = path.join(resultDir, file);
-      const s3Path = `${suiteId}/results/${Date.now()}_${file}`;
-      const resultlogurl = await uploadFileToS3(filePath, s3Path);
+      const s3Path = `${suiteId}/results/${Date.now()}_${path.basename(file)}`;
+      const resultlogurl = await uploadFileToS3(file, s3Path);
       urls.push(resultlogurl);
     }
 
-    // Find video directory recursively
-    const videoDir = findFolder(rootDir, videoFolderName);
-    const videoFiles = getFiles(videoDir, ".*\\.(mp4|mkv)$");
+    // Find video files recursively
+    const videoFiles = getFiles(rootDir, videoFilePath);
 
     for (const file of videoFiles) {
-      const filePath = path.join(videoDir, file);
-      const s3Path = `${suiteId}/videos/${Date.now()}_${file}`;
-      const vediourls = await uploadFileToS3(filePath, s3Path);
+      const s3Path = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
+      const vediourls = await uploadFileToS3(file, s3Path);
       urls.push(vediourls);
     }
 
