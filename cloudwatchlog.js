@@ -1,45 +1,84 @@
 const AWS = require("aws-sdk");
 const fs = require("fs");
+const path = require("path");
 const axios = require("axios");
-
-// Ensure these are securely managed in production
 require("dotenv").config();
 
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 const region = process.env.awsregion;
 const bucketName = process.env.bucket;
-const containerName = process.env.containername;
 const suiteId = process.env.suiteid;
 const authorization = process.env.authorization;
 const x_poolindex = process.env.x_poolindex;
 const x_groupuser_id = process.env.x_groupuser_id;
 const x_account_id = process.env.x_account_id;
 const api_result_uri = process.env.api_result_uri;
+const rootDir = process.env.rootDir;
+const resultFolderName = process.env.resultFolderName;
+const resultFilePattern = process.env.resultFilePattern || ".*\\.(html|pdf)$";
+const videoFolderName = process.env.videoFolderName;
 
-AWS.config.update({
-  region: region,
-  accessKeyId: accessKeyId,
-  secretAccessKey: secretAccessKey,
-});
+AWS.config.update({ region, accessKeyId, secretAccessKey });
+const s3 = new AWS.S3();
+let urls = [];
+
+// Function to search for a folder recursively
+const findFolder = (dir, folderName) => {
+  const list = fs.readdirSync(dir);
+
+  for (const file of list) {
+    const filePath = path.resolve(dir, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat && stat.isDirectory()) {
+      if (path.basename(filePath) === folderName) {
+        return filePath;
+      }
+      const found = findFolder(filePath, folderName);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+const getFiles = (dir, pattern) => {
+  const regex = new RegExp(pattern);
+  let results = [];
+  const list = fs.readdirSync(dir);
+
+  list.forEach((file) => {
+    file = path.resolve(dir, file);
+    const stat = fs.statSync(file);
+    if (stat && stat.isDirectory()) {
+      results = results.concat(getFiles(file, pattern));
+    } else {
+      if (regex.test(file)) {
+        results.push(file);
+      }
+    }
+  });
+
+  return results;
+};
+
+const uploadFileToS3 = async (filePath, key) => {
+  const fileContent = fs.readFileSync(filePath);
+  const params = {
+    Bucket: bucketName,
+    Key: key,
+    Body: fileContent,
+  };
+  await s3.upload(params).promise();
+  return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+};
 
 const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
     if (fs.existsSync(logFilePath)) {
       const logData = fs.readFileSync(logFilePath, "utf8");
-      const s3 = new AWS.S3();
-      const keyName = `logs/${containerName}_${suiteId}_${logFileName}`;
-      await s3
-        .putObject({
-          Bucket: bucketName,
-          Key: keyName,
-          Body: logData,
-        })
-        .promise();
-      const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${keyName}`;
-      console.log("Log file successfully uploaded to S3:", keyName);
-      console.log("Access the log file at:", s3Url);
-      return s3Url;
+      const keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
+      return await uploadFileToS3(logFilePath, keyName);
     } else {
       console.error(`File ${logFilePath} does not exist.`);
     }
@@ -62,6 +101,7 @@ const updateLogAndTestResult = async (
       let failed = 0;
       let skipped = 0;
       const logLines = logData.split("\n");
+
       logLines.forEach((line) => {
         if (line.includes("Scenario:")) {
           totalTest++;
@@ -76,6 +116,7 @@ const updateLogAndTestResult = async (
           skipped++;
         }
       });
+
       await updateTestResult(
         testlogurl,
         scriptlogurl,
@@ -113,6 +154,7 @@ const updateTestResult = async (
       failedcnt: failed,
       skippedcnt: skipped,
     };
+
     console.log("Calling updateTestResult:", JSON.stringify(data));
     const response = await axios.post(
       `${api_result_uri}/docker/update-testresult`,
@@ -126,6 +168,7 @@ const updateTestResult = async (
         },
       }
     );
+
     console.log("Update Test Result response:", response.data);
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
@@ -142,27 +185,52 @@ const uploadAllLogs = async () => {
       "/usr/scripts/testlog.log",
       "testlog.log"
     );
+    urls.push(testlogurl);
+
     const scriptlogurl = await readAndUploadLog(
       "/usr/scripts/alllogs.log",
       "alllogs.log"
     );
-    const resultlogurl = await readAndUploadLog(
-      "/usr/scripts/alllogs.log",
-      "alllogs.log"
-    );
+    urls.push(scriptlogurl);
+
+    // Find result directory recursively
+    const resultDir = findFolder(rootDir, resultFolderName);
+    const resultFiles = resultFilePattern
+      ? getFiles(resultDir, resultFilePattern)
+      : getFiles(resultDir, ".*\\.(html|pdf)$");
+
+    for (const file of resultFiles) {
+      const filePath = path.join(resultDir, file);
+      const s3Path = `${suiteId}/results/${Date.now()}_${file}`;
+      const resultlogurl = await uploadFileToS3(filePath, s3Path);
+      urls.push(resultlogurl);
+    }
+
+    // Find video directory recursively
+    const videoDir = findFolder(rootDir, videoFolderName);
+    const videoFiles = getFiles(videoDir, ".*\\.(mp4|mkv)$");
+
+    for (const file of videoFiles) {
+      const filePath = path.join(videoDir, file);
+      const s3Path = `${suiteId}/videos/${Date.now()}_${file}`;
+      const vediourls = await uploadFileToS3(filePath, s3Path);
+      urls.push(vediourls);
+    }
+
     await updateLogAndTestResult(
       testlogurl,
       scriptlogurl,
-      resultlogurl,
+      urls.join(";"),
       "/usr/scripts/testlog.log"
     );
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
       console.error("Invalid token:", error);
     } else {
-      console.error("Error updating test result:", error);
+      console.error("Error uploading files:", error);
     }
   }
 };
 
+// Start uploading logs
 uploadAllLogs();
