@@ -14,7 +14,7 @@ const x_poolindex = process.env.x_poolindex;
 const x_groupuser_id = process.env.x_groupuser_id;
 const x_account_id = process.env.x_account_id;
 const api_result_uri = process.env.api_result_uri;
-const rootDir = process.env.rootDir;
+const rootDir = process.env.rootDir || "/root";
 const resultFilePath = process.env.resultFilePath || ".*\\.(html|pdf)$";
 const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
 
