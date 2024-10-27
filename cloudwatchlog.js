@@ -22,9 +22,18 @@ AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
 let urls = [];
 
-// Function to search for files recursively based on pattern
 const getFiles = (dir, pattern) => {
-  const regex = new RegExp(pattern);
+  let regex;
+  if (pattern.includes("*")) {
+    // Remove leading slash and wildcard
+    pattern = pattern.replace(/\*/g, ".*");
+  }
+  if (!pattern.includes(".")) {
+    // If the pattern does not contain a dot, assume it's a directory
+    pattern = `${pattern}.*\\.(html|pdf|mp4|mkv)$`;
+  }
+
+  regex = new RegExp(pattern);
   let results = [];
   const list = fs.readdirSync(dir);
 
@@ -69,52 +78,6 @@ const readAndUploadLog = async (logFilePath, logFileName) => {
 };
 
 const updateLogAndTestResult = async (
-  testlogurl,
-  scriptlogurl,
-  resultlogurl,
-  logFilePath
-) => {
-  try {
-    if (fs.existsSync(logFilePath)) {
-      const logData = fs.readFileSync(logFilePath, "utf8");
-      let totalTest = 0;
-      let passed = 0;
-      let failed = 0;
-      let skipped = 0;
-      const logLines = logData.split("\n");
-
-      logLines.forEach((line) => {
-        if (line.includes("Scenario:")) {
-          totalTest++;
-        }
-        if (line.includes("✖")) {
-          failed++;
-        }
-        if (line.includes("✔")) {
-          passed++;
-        }
-        if (line.includes("skipped") || line.includes("pending")) {
-          skipped++;
-        }
-      });
-
-      await updateTestResult(
-        testlogurl,
-        scriptlogurl,
-        resultlogurl,
-        totalTest,
-        passed,
-        failed,
-        skipped
-      );
-    } else {
-      console.error(`Log file ${logFilePath} does not exist.`);
-    }
-  } catch (error) {
-    console.error("Error reading log file or updating test results:", error);
-  }
-};
-const updateTestResult = async (
   testlogurl,
   scriptlogurl,
   resultlogurl,
@@ -173,7 +136,7 @@ const uploadAllLogs = async () => {
     );
     urls.push(scriptlogurl);
 
-    // Find result files recursively
+    // Upload results
     const resultFiles = getFiles(rootDir, resultFilePath);
 
     for (const file of resultFiles) {
@@ -182,7 +145,7 @@ const uploadAllLogs = async () => {
       urls.push(resultlogurl);
     }
 
-    // Find video files recursively
+    // Upload videos
     const videoFiles = getFiles(rootDir, videoFilePath);
 
     for (const file of videoFiles) {
