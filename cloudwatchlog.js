@@ -17,6 +17,7 @@ const api_result_uri = process.env.api_result_uri;
 const rootDir = process.env.rootDir || "/repo";
 const resultFilePath = process.env.resultFilePath || ".*\\.(html|pdf)$";
 const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
+const resultjsonfile = process.env.resultjsonfile;
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
@@ -50,6 +51,14 @@ const getFiles = (dir, pattern) => {
   });
 
   return results;
+};
+
+const findJsonFile = (rootDir, resultJsonFileName) => {
+  const resultJsonFilePath = path.join(rootDir, resultJsonFileName);
+  if (fs.existsSync(resultJsonFilePath)) {
+    return resultJsonFilePath;
+  }
+  throw new Error(`Result JSON file not found: ${resultJsonFileName}`);
 };
 
 const uploadFileToS3 = async (filePath, key) => {
@@ -121,7 +130,6 @@ const updateLogAndTestResult = async (
     }
   }
 };
-
 const uploadAllLogs = async () => {
   try {
     const testlogurl = await readAndUploadLog(
@@ -154,11 +162,28 @@ const uploadAllLogs = async () => {
       urls.push(vediourls);
     }
 
+    // Get the result JSON file path from the environment variable
+    const resultJsonFileName = resultjsonfile || "scenario-summary.json";
+    const resultJsonFilePath = findJsonFile(rootDir, resultJsonFileName);
+
+    // Read and parse the result JSON file
+    const resultJsonContent = fs.readFileSync(resultJsonFilePath, "utf-8");
+    const resultData = JSON.parse(resultJsonContent);
+
+    const totalTests = resultData.total;
+    const passedTests = resultData.passed;
+    const failedTests = resultData.failed;
+    const skippedTests = resultData.skipped;
+
+    // Update log and test result
     await updateLogAndTestResult(
       testlogurl,
       scriptlogurl,
       urls.join(";"),
-      "/usr/scripts/testlog.log"
+      totalTests,
+      passedTests,
+      failedTests,
+      skippedTests
     );
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
