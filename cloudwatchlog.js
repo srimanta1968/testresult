@@ -15,23 +15,23 @@ const x_groupuser_id = process.env.x_groupuser_id;
 const x_account_id = process.env.x_account_id;
 const api_result_uri = process.env.api_result_uri;
 const rootDir = process.env.rootDir || "/repo";
-const resultFilePath = process.env.resultFilePath || ".*\\.(html|pdf)$";
+const resultFilePath =
+  process.env.resultFilePath || ".*\\.(html|pdf|png|jpg|jpeg|gif)$";
 const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
 const resultjsonfile = process.env.resultjsonfile;
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
 let urls = [];
+let htmlPdfUrls = []; // To store only HTML and PDF URLs
 
 const getFiles = (dir, pattern) => {
   let regex;
   if (pattern.includes("*")) {
-    // Remove leading slash and wildcard
     pattern = pattern.replace(/\*/g, ".*");
   }
   if (!pattern.includes(".")) {
-    // If the pattern does not contain a dot, assume it's a directory
-    pattern = `${pattern}.*\\.(html|pdf|mp4|mkv)$`;
+    pattern = `${pattern}.*\\.(html|pdf|png|jpg|jpeg|gif|mp4|mkv)$`;
   }
 
   regex = new RegExp(pattern);
@@ -89,7 +89,7 @@ const readAndUploadLog = async (logFilePath, logFileName) => {
 const updateLogAndTestResult = async (
   testlogurl,
   scriptlogurl,
-  resultlogurl,
+  resultpdfhtmlurl,
   totalTest,
   passed,
   failed,
@@ -100,7 +100,7 @@ const updateLogAndTestResult = async (
       suiteid: suiteId,
       testlogurl: testlogurl,
       scriptlogurl: scriptlogurl,
-      resulturl: resultlogurl,
+      resulturl: resultpdfhtmlurl,
       totaltestcnt: totalTest,
       passedcnt: passed,
       failedcnt: failed,
@@ -130,6 +130,7 @@ const updateLogAndTestResult = async (
     }
   }
 };
+
 const uploadAllLogs = async () => {
   try {
     const testlogurl = await readAndUploadLog(
@@ -144,29 +145,27 @@ const uploadAllLogs = async () => {
     );
     urls.push(scriptlogurl);
 
-    // Upload results
     const resultFiles = getFiles(rootDir, resultFilePath);
 
     for (const file of resultFiles) {
       const s3Path = `${suiteId}/results/${Date.now()}_${path.basename(file)}`;
       const resultlogurl = await uploadFileToS3(file, s3Path);
-      urls.push(resultlogurl);
+      if (s3Path.includes("html") || s3Path.includes("pdf")) {
+        htmlPdfUrls.push(s3Path); // Only push HTML and PDF files to urls
+      }
     }
 
-    // Upload videos
     const videoFiles = getFiles(rootDir, videoFilePath);
 
     for (const file of videoFiles) {
       const s3Path = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
       const vediourls = await uploadFileToS3(file, s3Path);
-      urls.push(vediourls);
+      urls.push(s3Path);
     }
 
-    // Get the result JSON file path from the environment variable
     const resultJsonFileName = resultjsonfile || "scenario-summary.json";
     const resultJsonFilePath = findJsonFile(rootDir, resultJsonFileName);
 
-    // Read and parse the result JSON file
     const resultJsonContent = fs.readFileSync(resultJsonFilePath, "utf-8");
     const resultData = JSON.parse(resultJsonContent);
 
@@ -175,11 +174,10 @@ const uploadAllLogs = async () => {
     const failedTests = resultData.failed;
     const skippedTests = resultData.skipped;
 
-    // Update log and test result
     await updateLogAndTestResult(
       testlogurl,
       scriptlogurl,
-      urls.join(";"),
+      htmlPdfUrls.join(";"), // Join only HTML and PDF URLs
       totalTests,
       passedTests,
       failedTests,
@@ -194,5 +192,4 @@ const uploadAllLogs = async () => {
   }
 };
 
-// Start uploading logs
 uploadAllLogs();
