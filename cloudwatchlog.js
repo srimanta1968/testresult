@@ -77,7 +77,8 @@ const readAndUploadLog = async (logFilePath, logFileName) => {
     if (fs.existsSync(logFilePath)) {
       const logData = fs.readFileSync(logFilePath, "utf8");
       const keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
-      return await uploadFileToS3(logFilePath, keyName);
+      await uploadFileToS3(logFilePath, keyName);
+      return keyName;
     } else {
       console.error(`File ${logFilePath} does not exist.`);
     }
