@@ -19,6 +19,7 @@ const resultFilePath =
   process.env.resultFilePath || ".*\\.(html|pdf|png|jpg|jpeg|gif)$";
 const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
 const resultjsonfile = process.env.resultjsonfile;
+const testenv = process.env.testenv;
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
@@ -106,6 +107,7 @@ const updateLogAndTestResult = async (
       passedcnt: passed,
       failedcnt: failed,
       skippedcnt: skipped,
+      testenv: testenv,
     };
 
     console.log("Calling updateTestResult:", JSON.stringify(data));
