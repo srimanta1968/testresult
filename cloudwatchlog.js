@@ -20,6 +20,10 @@ const resultFilePath =
 const videoFilePath = process.env.videoFilePath || ".*\\.(mp4|mkv)$";
 const resultjsonfile = process.env.resultjsonfile;
 const testenv = process.env.testenv;
+const testsuite2feature = process.env.testsuite2feature;
+const userid = process.env.userid;
+const runby = process.env.runby;
+let tesreultid;
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
@@ -76,7 +80,6 @@ const uploadFileToS3 = async (filePath, key) => {
 const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
     if (fs.existsSync(logFilePath)) {
-      const logData = fs.readFileSync(logFilePath, "utf8");
       const keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
       await uploadFileToS3(logFilePath, keyName);
       return keyName;
@@ -123,14 +126,49 @@ const updateLogAndTestResult = async (
         },
       }
     );
-
-    console.log("Update Test Result response:", response.data);
+    tesreultid = response.data.resultid;
+    console.log("Update Test Result response:", response.data.message);
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
       console.error("Invalid token:", error);
     } else {
       console.error("Error updating test result:", error);
     }
+  }
+};
+
+const saveTestFailure = async (failureData, scriptlogurl) => {
+  try {
+    const data = {
+      suiteid: suiteId,
+      featureid: testsuite2feature,
+      reportid: tesreultid,
+      userid: userid,
+      runby: runby,
+      stepname: failureData.step,
+      scenarioname: failureData.scenario,
+      description: failureData.reason,
+      reporturl: scriptlogurl,
+      x_groupuser_id: x_groupuser_id,
+    };
+
+    const response = await axios.post(
+      `${api_result_uri}/docker/insert-test-failure`,
+      data,
+      {
+        headers: {
+          Authorization: `${authorization}`,
+          x_account_id: x_account_id,
+          x_groupuser_id: x_groupuser_id,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("TestFailure created:", response.data);
+  } catch (error) {
+    console.log(error);
+    console.error("Error creating TestFailure:", error);
   }
 };
 
@@ -162,8 +200,8 @@ const uploadAllLogs = async () => {
 
     for (const file of videoFiles) {
       const s3Path = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
-      const vediourls = await uploadFileToS3(file, s3Path);
-      urls.push(s3Path);
+      const videourls = await uploadFileToS3(file, s3Path);
+      urls.push(videourls);
     }
 
     const resultJsonFileName = resultjsonfile || "scenario-summary.json";
@@ -186,6 +224,17 @@ const uploadAllLogs = async () => {
       failedTests,
       skippedTests
     );
+
+    // Process and save each failed scenario
+    const failedJsonFileName = "failures.json";
+    const failedJsonFilePath = findJsonFile(rootDir, failedJsonFileName);
+
+    const failedJsonContent = fs.readFileSync(failedJsonFilePath, "utf-8");
+    const failedJsonData = JSON.parse(failedJsonContent);
+
+    for (const failureData of failedJsonData) {
+      await saveTestFailure(failureData, scriptlogurl);
+    }
   } catch (error) {
     if (error.response && error.response.data.error === "Invalid token") {
       console.error("Invalid token:", error);
