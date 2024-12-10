@@ -23,7 +23,7 @@ const testenv = process.env.testenv;
 const testsuite2feature = process.env.testsuite2feature;
 const userid = process.env.userid;
 const runby = process.env.runby;
-let tesreultid;
+let testreportid;
 
 AWS.config.update({ region, accessKeyId, secretAccessKey });
 const s3 = new AWS.S3();
@@ -115,7 +115,7 @@ const updateLogAndTestResult = async (
 
     console.log("Calling updateTestResult:", JSON.stringify(data));
     const response = await axios.post(
-      `${api_result_uri}/docker/update-testresult`,
+      `${api_result_uri}/docker/update-test-result`,
       data,
       {
         headers: {
@@ -126,23 +126,24 @@ const updateLogAndTestResult = async (
         },
       }
     );
-    tesreultid = response.data.resultid;
+    testreportid = response.data.resultid;
     console.log("Update Test Result response:", response.data.message);
   } catch (error) {
-    if (error.response && error.response.data.error === "Invalid token") {
-      console.error("Invalid token:", error);
-    } else {
-      console.error("Error updating test result:", error);
-    }
+    console.error("Error updating test result:", error);
   }
 };
 
 const saveTestFailure = async (failureData, scriptlogurl) => {
+  if (!testreportid) {
+    console.error("Test report ID is not defined. Cannot save test failure.");
+    return;
+  }
+
   try {
     const data = {
       suiteid: suiteId,
       featureid: testsuite2feature,
-      reportid: tesreultid,
+      reportid: testreportid,
       userid: userid,
       runby: runby,
       stepname: failureData.step,
@@ -168,7 +169,6 @@ const saveTestFailure = async (failureData, scriptlogurl) => {
 
     console.log("TestFailure created:", response.data);
   } catch (error) {
-    console.log(error);
     console.error("Error creating TestFailure:", error);
   }
 };
@@ -226,8 +226,16 @@ const uploadAllLogs = async () => {
       skippedTests
     );
 
+    // Ensure the test report ID is defined before saving failures
+    if (!testreportid) {
+      console.error(
+        "Test report ID is not defined. Cannot save test failures."
+      );
+      return;
+    }
+
     // Process and save each failed scenario
-    const failedJsonFileName = resultFilePath + "/failures.json";
+    const failedJsonFileName = "failures.json";
     const failedJsonFilePath = findJsonFile(rootDir, failedJsonFileName);
 
     const failedJsonContent = fs.readFileSync(failedJsonFilePath, "utf-8");
@@ -237,11 +245,7 @@ const uploadAllLogs = async () => {
       await saveTestFailure(failureData, scriptlogurl);
     }
   } catch (error) {
-    if (error.response && error.response.data.error === "Invalid token") {
-      console.error("Invalid token:", error);
-    } else {
-      console.error("Error uploading files:", error);
-    }
+    console.error("Error uploading files:", error);
   }
 };
 
