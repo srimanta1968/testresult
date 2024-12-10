@@ -235,7 +235,7 @@ const uploadAllLogs = async () => {
     }
 
     // Process and save each failed scenario
-    const failedJsonFileName = "failures.json";
+    const failedJsonFileName = resultFilePath + "/failures.json";
     const failedJsonFilePath = findJsonFile(rootDir, failedJsonFileName);
 
     const failedJsonContent = fs.readFileSync(failedJsonFilePath, "utf-8");
