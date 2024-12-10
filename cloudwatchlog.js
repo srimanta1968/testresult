@@ -160,6 +160,7 @@ const saveTestFailure = async (failureData, scriptlogurl) => {
           Authorization: `${authorization}`,
           x_account_id: x_account_id,
           x_groupuser_id: x_groupuser_id,
+          x_poolindex: x_poolindex,
           "Content-Type": "application/json",
         },
       }
