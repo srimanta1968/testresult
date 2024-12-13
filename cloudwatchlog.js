@@ -128,6 +128,7 @@ const updateLogAndTestResult = async (
     );
     testreportid = response.data.reportid;
     console.log("Update Test Result response:", response.data.message);
+    console.log("Update Test Result Reportid:", testreportid);
   } catch (error) {
     console.error("Error updating test result:", error);
   }
