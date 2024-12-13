@@ -126,14 +126,14 @@ const updateLogAndTestResult = async (
         },
       }
     );
-    testreportid = response.data.resultid;
+    testreportid = response.data.reportid;
     console.log("Update Test Result response:", response.data.message);
   } catch (error) {
     console.error("Error updating test result:", error);
   }
 };
 
-const saveTestFailure = async (failureData, scriptlogurl) => {
+const saveTestFailure = async (failureData, scriptlogurl, reporturl) => {
   if (!testreportid) {
     console.error("Test report ID is not defined. Cannot save test failure.");
     return;
@@ -149,7 +149,8 @@ const saveTestFailure = async (failureData, scriptlogurl) => {
       stepname: failureData.step,
       scenarioname: failureData.scenario,
       description: failureData.reason,
-      reporturl: scriptlogurl,
+      i_logurl: scriptlogurl,
+      i_reporturl: reporturl,
       x_groupuser_id: x_groupuser_id,
     };
 
@@ -242,7 +243,7 @@ const uploadAllLogs = async () => {
     const failedJsonData = JSON.parse(failedJsonContent);
 
     for (const failureData of failedJsonData) {
-      await saveTestFailure(failureData, scriptlogurl);
+      await saveTestFailure(failureData, scriptlogurl, htmlPdfUrls.join(";"));
     }
   } catch (error) {
     console.error("Error uploading files:", error);
