@@ -18,6 +18,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install XVFB for headless browser support
+RUN apt-get update && apt-get install -y xvfb
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
@@ -28,5 +31,5 @@ COPY . .
 RUN npm install -g playwright && \
     npx playwright install --with-deps
 
-# This CMD will be overwritten by the command in your task definition
-CMD ["sh", "-c", "ls -l"]
+# Set up XVFB to run Playwright scripts
+CMD ["sh", "-c", "xvfb-run --server-args='-screen 0 1024x768x24' npx playwright test"]
