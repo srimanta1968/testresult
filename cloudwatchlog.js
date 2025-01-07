@@ -1,10 +1,10 @@
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { ClientSecretCredential } = require("@azure/identity");
 const { StorageManagementClient } = require("@azure/arm-storage");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
-const AWS = require("aws-sdk");
 require("dotenv").config();
 
 const azureClientId = process.env.azureClientId;
@@ -42,10 +42,10 @@ const provider = process.env.provider;
 let accountName = storageAccountName;
 let testreportid;
 
-const getStorageAccountName = async () => {
-  console.log("Using provided storage account name:", storageAccountName);
-  return storageAccountName; // Use the provided account name directly
-};
+const s3Client = new S3Client({
+  region,
+  credentials: { accessKeyId, secretAccessKey },
+});
 
 const getFiles = (dir, pattern) => {
   let regex;
@@ -85,12 +85,12 @@ const findJsonFile = (rootDir, resultJsonFileName) => {
 
 const uploadFileToS3 = async (filePath, key) => {
   const fileContent = fs.readFileSync(filePath);
-  const params = {
+  const uploadParams = {
     Bucket: bucketName,
     Key: key,
     Body: fileContent,
   };
-  await s3.upload(params).promise();
+  await s3Client.send(new PutObjectCommand(uploadParams));
   return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
 };
 
