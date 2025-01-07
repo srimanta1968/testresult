@@ -209,11 +209,8 @@ const saveTestFailure = async (failureData, scriptlogurl, reporturl) => {
 };
 
 const uploadAllLogs = async () => {
+  let urls = [];
   try {
-    if (provider === "Azure") {
-      accountName = await getStorageAccountName();
-    }
-
     const testlogurl = await readAndUploadLog(
       "/usr/scripts/testlog.log",
       "testlog.log"
