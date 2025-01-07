@@ -56,11 +56,17 @@ const getStorageAccountName = async () => {
     `Found ${accounts.length} storage accounts in resource group ${resourceGroup}`
   );
 
-  if (accounts.length > 0) {
-    console.log(`Using storage account: ${accounts[0].name}`);
-    return accounts[0].name; // Assuming the first account is the one we need
+  if (accounts.length === 0) {
+    throw new Error(
+      `No storage accounts found in the specified resource group: ${resourceGroup}`
+    );
   }
-  throw new Error("No storage accounts found in the specified resource group.");
+
+  accounts.forEach((account) =>
+    console.log(`Storage Account: ${account.name}`)
+  );
+
+  return accounts[0].name; // Assuming the first account is the one we need
 };
 
 const getFiles = (dir, pattern) => {
