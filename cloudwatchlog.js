@@ -42,26 +42,34 @@ let accountName;
 let testreportid;
 
 const getStorageAccountName = async () => {
+  console.log("Creating credentials...");
   const credential = new ClientSecretCredential(
     azureTenantId,
     azureClientId,
     azureClientSecret
   );
+  console.log("Credentials created.");
+
+  console.log("Creating storage management client...");
   const client = new StorageManagementClient(credential, azureSubscriptionId);
+  console.log("Storage management client created.");
+
+  console.log("Listing storage accounts...");
   const accounts = await client.storageAccounts.listByResourceGroup(
     resourceGroup
   );
+  console.log(`Accounts response type: ${typeof accounts}`);
+  console.log(`Accounts response: ${JSON.stringify(accounts, null, 2)}`);
 
-  console.log(
-    `Found ${accounts.length} storage accounts in resource group ${resourceGroup}`
-  );
-
-  if (accounts.length === 0) {
+  if (!accounts || accounts.length === 0) {
     throw new Error(
       `No storage accounts found in the specified resource group: ${resourceGroup}`
     );
   }
 
+  console.log(
+    `Found ${accounts.length} storage accounts in resource group ${resourceGroup}`
+  );
   accounts.forEach((account) =>
     console.log(`Storage Account: ${account.name}`)
   );
