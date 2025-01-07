@@ -13,12 +13,13 @@ const azureTenantId = process.env.azureTenantId;
 const azureSubscriptionId = process.env.azureSubscriptionId;
 const containername = process.env.containername;
 const resourceGroup = process.env.resourceGroup;
+const storageAccountName = process.env.storageAccountName;
 const registryServer = process.env.registryServer;
 const registryUsername = process.env.registryUsername;
 const registryPassword = process.env.registryPassword;
 
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const accessKeyId = process.env.accessKeyId;
+const secretAccessKey = process.env.secretAccessKey;
 const region = process.env.awsregion;
 const bucketName = process.env.bucket;
 const suiteId = process.env.suiteid;
@@ -38,42 +39,12 @@ const userid = process.env.userid;
 const runby = process.env.runby;
 const provider = process.env.provider;
 
-let accountName;
+let accountName = storageAccountName;
 let testreportid;
 
 const getStorageAccountName = async () => {
-  console.log("Creating credentials...");
-  const credential = new ClientSecretCredential(
-    azureTenantId,
-    azureClientId,
-    azureClientSecret
-  );
-  console.log("Credentials created.");
-
-  console.log("Creating storage management client...");
-  const client = new StorageManagementClient(credential, azureSubscriptionId);
-  console.log("Storage management client created.");
-
-  console.log("Listing storage accounts...");
-  const accounts = await client.storageAccounts.listByResourceGroup(
-    resourceGroup
-  );
-  console.log(`Accounts response type: ${typeof accounts}`);
-  console.log(`Accounts response: ${JSON.stringify(accounts, null, 2)}`);
-
-  if (accounts.value && accounts.value.length > 0) {
-    console.log(
-      `Found ${accounts.value.length} storage accounts in resource group ${resourceGroup}`
-    );
-    accounts.value.forEach((account) =>
-      console.log(`Storage Account: ${account.name}`)
-    );
-    return accounts.value[0].name; // Assuming the first account is the one we need
-  } else {
-    throw new Error(
-      `No storage accounts found in the specified resource group: ${resourceGroup}`
-    );
-  }
+  console.log("Using provided storage account name:", storageAccountName);
+  return storageAccountName; // Use the provided account name directly
 };
 
 const getFiles = (dir, pattern) => {
