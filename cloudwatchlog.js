@@ -61,20 +61,19 @@ const getStorageAccountName = async () => {
   console.log(`Accounts response type: ${typeof accounts}`);
   console.log(`Accounts response: ${JSON.stringify(accounts, null, 2)}`);
 
-  if (!accounts || accounts.length === 0) {
+  if (accounts.value && accounts.value.length > 0) {
+    console.log(
+      `Found ${accounts.value.length} storage accounts in resource group ${resourceGroup}`
+    );
+    accounts.value.forEach((account) =>
+      console.log(`Storage Account: ${account.name}`)
+    );
+    return accounts.value[0].name; // Assuming the first account is the one we need
+  } else {
     throw new Error(
       `No storage accounts found in the specified resource group: ${resourceGroup}`
     );
   }
-
-  console.log(
-    `Found ${accounts.length} storage accounts in resource group ${resourceGroup}`
-  );
-  accounts.forEach((account) =>
-    console.log(`Storage Account: ${account.name}`)
-  );
-
-  return accounts[0].name; // Assuming the first account is the one we need
 };
 
 const getFiles = (dir, pattern) => {
