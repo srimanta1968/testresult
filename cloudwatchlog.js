@@ -1,8 +1,21 @@
+const { DefaultAzureCredential } = require("@azure/identity");
+const { StorageManagementClient } = require("@azure/arm-storage");
+const { BlobServiceClient } = require("@azure/storage-blob");
 const AWS = require("aws-sdk");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 require("dotenv").config();
+
+const azureClientId = process.env.azureClientId;
+const azureClientSecret = process.env.azureClientSecret;
+const azureTenantId = process.env.azureTenantId;
+const azureSubscriptionId = process.env.azureSubscriptionId;
+const containername = process.env.containername;
+const resourceGroup = process.env.resourceGroup;
+const registryServer = process.env.registryServer;
+const registryUsername = process.env.registryUsername;
+const registryPassword = process.env.registryPassword;
 
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -23,12 +36,22 @@ const testenv = process.env.testenv;
 const testsuite2feature = process.env.testsuite2feature;
 const userid = process.env.userid;
 const runby = process.env.runby;
+const provider = process.env.provider;
+
+let accountName;
 let testreportid;
 
-AWS.config.update({ region, accessKeyId, secretAccessKey });
-const s3 = new AWS.S3();
-let urls = [];
-let htmlPdfUrls = []; // To store only HTML and PDF URLs
+const getStorageAccountName = async () => {
+  const credential = new DefaultAzureCredential();
+  const client = new StorageManagementClient(credential, azureSubscriptionId);
+  const accounts = await client.storageAccounts.listByResourceGroup(
+    resourceGroup
+  );
+  if (accounts.length > 0) {
+    return accounts[0].name; // Assuming the first account is the one we need
+  }
+  throw new Error("No storage accounts found in the specified resource group.");
+};
 
 const getFiles = (dir, pattern) => {
   let regex;
@@ -77,11 +100,27 @@ const uploadFileToS3 = async (filePath, key) => {
   return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
 };
 
+const uploadFileToAzure = async (filePath, blobName) => {
+  const blobServiceClient = new BlobServiceClient(
+    `https://${accountName}.blob.core.windows.net`,
+    new DefaultAzureCredential()
+  );
+  const containerClient = blobServiceClient.getContainerClient(containername);
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  const fileContent = fs.readFileSync(filePath);
+  await blockBlobClient.uploadData(fileContent);
+  return `https://${accountName}.blob.core.windows.net/${containername}/${blobName}`;
+};
+
 const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
     if (fs.existsSync(logFilePath)) {
       const keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
-      await uploadFileToS3(logFilePath, keyName);
+      if (provider === "s3") {
+        await uploadFileToS3(logFilePath, keyName);
+      } else if (provider === "Azure") {
+        await uploadFileToAzure(logFilePath, keyName);
+      }
       return keyName;
     } else {
       console.error(`File ${logFilePath} does not exist.`);
@@ -177,6 +216,10 @@ const saveTestFailure = async (failureData, scriptlogurl, reporturl) => {
 
 const uploadAllLogs = async () => {
   try {
+    if (provider === "Azure") {
+      accountName = await getStorageAccountName();
+    }
+
     const testlogurl = await readAndUploadLog(
       "/usr/scripts/testlog.log",
       "testlog.log"
@@ -192,19 +235,29 @@ const uploadAllLogs = async () => {
     const resultFiles = getFiles(rootDir, resultFilePath);
 
     for (const file of resultFiles) {
-      const s3Path = `${suiteId}/results/${Date.now()}_${path.basename(file)}`;
-      const resultlogurl = await uploadFileToS3(file, s3Path);
-      if (s3Path.includes("html") || s3Path.includes("pdf")) {
-        htmlPdfUrls.push(s3Path); // Only push HTML and PDF files to urls
+      const fileKey = `${suiteId}/results/${Date.now()}_${path.basename(file)}`;
+      let resultlogurl;
+      if (provider === "s3") {
+        resultlogurl = await uploadFileToS3(file, fileKey);
+      } else if (provider === "Azure") {
+        resultlogurl = await uploadFileToAzure(file, fileKey);
+      }
+      if (fileKey.includes("html") || fileKey.includes("pdf")) {
+        htmlPdfUrls.push(fileKey); // Only push HTML and PDF files to urls
       }
     }
 
     const videoFiles = getFiles(rootDir, videoFilePath);
 
     for (const file of videoFiles) {
-      const s3Path = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
-      const videourls = await uploadFileToS3(file, s3Path);
-      urls.push(videourls);
+      const fileKey = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
+      let videourl;
+      if (provider === "s3") {
+        videourl = await uploadFileToS3(file, fileKey);
+      } else if (provider === "Azure") {
+        videourl = await uploadFileToAzure(file, fileKey);
+      }
+      urls.push(videourl);
     }
 
     const resultJsonFileName = resultjsonfile || "scenario-summary.json";

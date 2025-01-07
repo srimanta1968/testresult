@@ -1,0 +1,23 @@
+az role assignment create --assignee "1cb69ecc-6145-4f0e-84d1-79770f069283" --role "AcrPull" --scope "/subscriptions/ec3c7b7b-98e4-46e5-8330-0f831c462863/resourceGroups/myResourceGroup/providers/Microsoft.ContainerRegistry/registries/projexlightregistry"
+
+az role assignment create --assignee "1cb69ecc-6145-4f0e-84d1-79770f069283" --role "AcrPush" --scope "/subscriptions/ec3c7b7b-98e4-46e5-8330-0f831c462863/resourceGroups/myResourceGroup/providers/Microsoft.ContainerRegistry/registries/projexlightregistry"
+
+az role assignment create --assignee "1cb69ecc-6145-4f0e-84d1-79770f069283" --role "Contributor" --scope "/subscriptions/ec3c7b7b-98e4-46e5-8330-0f831c462863/resourceGroups/myResourceGroup"
+
+az provider register --namespace Microsoft.ContainerInstance
+
+az container list --resource-group myResourceGroup --output table
+
+az container list --resource-group myResourceGroup --query "length([?instanceView.state=='Running'])"
+
+az container list --resource-group myResourceGroup --query "length([?instanceView.state=='Failed'])"
+
+az container list --resource-group myResourceGroup --query "length([?instanceView.state=='Succeeded'])"
+
+# Streaming log
+az container logs --resource-group myResourceGroup --name prod-container1 --follow
+
+
+
+az account clear
+az login
