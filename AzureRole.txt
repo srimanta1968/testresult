@@ -15,7 +15,7 @@ az container list --resource-group myResourceGroup --query "length([?instanceVie
 az container list --resource-group myResourceGroup --query "length([?instanceView.state=='Succeeded'])"
 
 # Streaming log
-az container logs --resource-group myResourceGroup --name prod-container1 --follow
+az container logs --resource-group myResourceGroup --name prod-container2-4233 --follow
 
 
 

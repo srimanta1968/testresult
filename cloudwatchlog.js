@@ -1,10 +1,10 @@
-const { DefaultAzureCredential } = require("@azure/identity");
+const { ClientSecretCredential } = require("@azure/identity");
 const { StorageManagementClient } = require("@azure/arm-storage");
 const { BlobServiceClient } = require("@azure/storage-blob");
-const AWS = require("aws-sdk");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const AWS = require("aws-sdk");
 require("dotenv").config();
 
 const azureClientId = process.env.azureClientId;
@@ -42,12 +42,22 @@ let accountName;
 let testreportid;
 
 const getStorageAccountName = async () => {
-  const credential = new DefaultAzureCredential();
+  const credential = new ClientSecretCredential(
+    azureTenantId,
+    azureClientId,
+    azureClientSecret
+  );
   const client = new StorageManagementClient(credential, azureSubscriptionId);
   const accounts = await client.storageAccounts.listByResourceGroup(
     resourceGroup
   );
+
+  console.log(
+    `Found ${accounts.length} storage accounts in resource group ${resourceGroup}`
+  );
+
   if (accounts.length > 0) {
+    console.log(`Using storage account: ${accounts[0].name}`);
     return accounts[0].name; // Assuming the first account is the one we need
   }
   throw new Error("No storage accounts found in the specified resource group.");
@@ -103,7 +113,7 @@ const uploadFileToS3 = async (filePath, key) => {
 const uploadFileToAzure = async (filePath, blobName) => {
   const blobServiceClient = new BlobServiceClient(
     `https://${accountName}.blob.core.windows.net`,
-    new DefaultAzureCredential()
+    new ClientSecretCredential(azureTenantId, azureClientId, azureClientSecret)
   );
   const containerClient = blobServiceClient.getContainerClient(containername);
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
