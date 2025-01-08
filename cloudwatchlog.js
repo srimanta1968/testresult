@@ -1,6 +1,5 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { ClientSecretCredential } = require("@azure/identity");
-const { StorageManagementClient } = require("@azure/arm-storage");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const fs = require("fs");
 const path = require("path");
@@ -94,12 +93,19 @@ const uploadFileToS3 = async (filePath, key) => {
   return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
 };
 
+const createAzureContainer = async (containerClient) => {
+  await containerClient.createIfNotExists();
+};
+
 const uploadFileToAzure = async (filePath, blobName) => {
   const blobServiceClient = new BlobServiceClient(
     `https://${accountName}.blob.core.windows.net`,
     new ClientSecretCredential(azureTenantId, azureClientId, azureClientSecret)
   );
   const containerClient = blobServiceClient.getContainerClient(containername);
+
+  await createAzureContainer(containerClient);
+
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
   const fileContent = fs.readFileSync(filePath);
   await blockBlobClient.uploadData(fileContent);
