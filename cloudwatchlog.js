@@ -334,13 +334,15 @@ const uploadAllLogs = async () => {
     console.error("Error uploading files:", error);
   }
 
-  // Delete the Azure container if the provider is Azure
+  // Delete the Azure container if the provider is Azure after 2 minutes
   if (provider === "Azure") {
-    deleteAzureContainer(containername, resourceGroup)
-      .then(() => console.log("Container deletion task completed"))
-      .catch((error) =>
-        console.error("Container deletion task failed:", error)
-      );
+    setTimeout(() => {
+      deleteAzureContainer(containername, resourceGroup)
+        .then(() => console.log("Container deletion task completed"))
+        .catch((error) =>
+          console.error("Container deletion task failed:", error)
+        );
+    }, 120000); // 2 minutes in milliseconds
   }
 };
 
