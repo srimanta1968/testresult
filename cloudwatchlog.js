@@ -249,6 +249,8 @@ const deleteAzureContainer = async (containerName, resourceGroup) => {
 const uploadAllLogs = async () => {
   let urls = [];
   let htmlPdfUrls = [];
+  let errorOccurred = false;
+
   try {
     const testlogurl = await readAndUploadLog(
       "/usr/scripts/testlog.log",
@@ -332,9 +334,10 @@ const uploadAllLogs = async () => {
     }
   } catch (error) {
     console.error("Error uploading files:", error);
+    errorOccurred = true;
   }
 
-  // Delete the Azure container if the provider is Azure after 2 minutes
+  // Always delete the Azure container if the provider is Azure, regardless of errors
   if (provider === "Azure") {
     setTimeout(() => {
       deleteAzureContainer(containername, resourceGroup)
@@ -342,11 +345,17 @@ const uploadAllLogs = async () => {
         .catch((error) =>
           console.error("Container deletion task failed:", error)
         );
-    }, 120000); // 2 minutes in milliseconds
+    }, 120000); // 2 minute in milliseconds
+  }
+
+  if (!errorOccurred) {
+    console.log("All logs uploaded successfully");
+  } else {
+    console.log("Logs uploaded with errors");
   }
 };
 
 // Call uploadAllLogs at the end
-uploadAllLogs()
-  .then(() => console.log("All logs uploaded successfully"))
-  .catch((error) => console.error("Error uploading all logs:", error));
+uploadAllLogs().catch((error) =>
+  console.error("Error in uploadAllLogs:", error)
+);
