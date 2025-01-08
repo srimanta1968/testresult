@@ -10,6 +10,7 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.723.0",
+    "@azure/arm-containerinstance": "^9.1.0",
     "@azure/arm-storage": "^18.3.0",
     "@azure/identity": "^4.5.0",
     "@azure/storage-blob": "^12.26.0",

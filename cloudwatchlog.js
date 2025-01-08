@@ -1,5 +1,8 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { ClientSecretCredential } = require("@azure/identity");
+const {
+  ContainerInstanceManagementClient,
+} = require("@azure/arm-containerinstance");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const fs = require("fs");
 const path = require("path");
@@ -116,12 +119,13 @@ const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
     if (fs.existsSync(logFilePath)) {
       let keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
+      let url;
       if (provider === "s3") {
-        await uploadFileToS3(logFilePath, keyName);
+        url = await uploadFileToS3(logFilePath, keyName);
       } else if (provider === "Azure") {
-        keyName = await uploadFileToAzure(logFilePath, keyName);
+        url = await uploadFileToAzure(logFilePath, keyName);
       }
-      return keyName;
+      return url;
     } else {
       console.error(`File ${logFilePath} does not exist.`);
     }
@@ -214,6 +218,34 @@ const saveTestFailure = async (failureData, scriptlogurl, reporturl) => {
   }
 };
 
+const deleteAzureContainer = async (containerName, resourceGroup) => {
+  try {
+    const credential = new ClientSecretCredential(
+      azureTenantId,
+      azureClientId,
+      azureClientSecret
+    );
+    const azureClient = new ContainerInstanceManagementClient(
+      credential,
+      azureSubscriptionId
+    );
+
+    console.log(
+      `Deleting container instance: ${containerName} in resource group: ${resourceGroup}`
+    );
+
+    // Submit the delete task and continue without waiting
+    await azureClient.containerGroups.beginDelete(resourceGroup, containerName);
+
+    console.log("Container instance deletion task submitted successfully");
+  } catch (error) {
+    console.error("Error deleting Azure container instance:", error);
+    throw new Error(
+      `Error deleting Azure container instance: ${error.message}`
+    );
+  }
+};
+
 const uploadAllLogs = async () => {
   let urls = [];
   let htmlPdfUrls = [];
@@ -241,8 +273,9 @@ const uploadAllLogs = async () => {
         resultlogurl = await uploadFileToAzure(file, fileKey);
       }
       if (fileKey.includes("html") || fileKey.includes("pdf")) {
-        htmlPdfUrls.push(fileKey); // Only push HTML and PDF files to urls
+        htmlPdfUrls.push(resultlogurl); // Push HTML and PDF URLs to htmlPdfUrls
       }
+      urls.push(resultlogurl);
     }
 
     const videoFiles = getFiles(rootDir, videoFilePath);
@@ -288,7 +321,7 @@ const uploadAllLogs = async () => {
     }
 
     // Process and save each failed scenario
-    const failedJsonFileName = resultFilePath + "/failures.json";
+    const failedJsonFileName = "failures.json";
     const failedJsonFilePath = findJsonFile(rootDir, failedJsonFileName);
 
     const failedJsonContent = fs.readFileSync(failedJsonFilePath, "utf-8");
@@ -300,6 +333,18 @@ const uploadAllLogs = async () => {
   } catch (error) {
     console.error("Error uploading files:", error);
   }
+
+  // Delete the Azure container if the provider is Azure
+  if (provider === "Azure") {
+    deleteAzureContainer(containername, resourceGroup)
+      .then(() => console.log("Container deletion task completed"))
+      .catch((error) =>
+        console.error("Container deletion task failed:", error)
+      );
+  }
 };
 
-uploadAllLogs();
+// Call uploadAllLogs at the end
+uploadAllLogs()
+  .then(() => console.log("All logs uploaded successfully"))
+  .catch((error) => console.error("Error uploading all logs:", error));
