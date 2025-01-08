@@ -216,6 +216,7 @@ const saveTestFailure = async (failureData, scriptlogurl, reporturl) => {
 
 const uploadAllLogs = async () => {
   let urls = [];
+  let htmlPdfUrls = [];
   try {
     const testlogurl = await readAndUploadLog(
       "/usr/scripts/testlog.log",
