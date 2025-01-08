@@ -120,7 +120,7 @@ const readAndUploadLog = async (logFilePath, logFileName) => {
     if (fs.existsSync(logFilePath)) {
       let keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
       let url;
-      if (provider === "s3") {
+      if (provider === "AWS") {
         url = await uploadFileToS3(logFilePath, keyName);
       } else if (provider === "Azure") {
         url = await uploadFileToAzure(logFilePath, keyName);
@@ -267,7 +267,7 @@ const uploadAllLogs = async () => {
     for (const file of resultFiles) {
       const fileKey = `${suiteId}/results/${Date.now()}_${path.basename(file)}`;
       let resultlogurl;
-      if (provider === "s3") {
+      if (provider === "AWS") {
         resultlogurl = await uploadFileToS3(file, fileKey);
       } else if (provider === "Azure") {
         resultlogurl = await uploadFileToAzure(file, fileKey);
@@ -283,7 +283,7 @@ const uploadAllLogs = async () => {
     for (const file of videoFiles) {
       const fileKey = `${suiteId}/videos/${Date.now()}_${path.basename(file)}`;
       let videourl;
-      if (provider === "s3") {
+      if (provider === "AWS") {
         videourl = await uploadFileToS3(file, fileKey);
       } else if (provider === "Azure") {
         videourl = await uploadFileToAzure(file, fileKey);
