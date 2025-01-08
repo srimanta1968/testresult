@@ -115,11 +115,11 @@ const uploadFileToAzure = async (filePath, blobName) => {
 const readAndUploadLog = async (logFilePath, logFileName) => {
   try {
     if (fs.existsSync(logFilePath)) {
-      const keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
+      let keyName = `logs/${suiteId}_${Date.now()}_${logFileName}`;
       if (provider === "s3") {
         await uploadFileToS3(logFilePath, keyName);
       } else if (provider === "Azure") {
-        await uploadFileToAzure(logFilePath, keyName);
+        keyName = await uploadFileToAzure(logFilePath, keyName);
       }
       return keyName;
     } else {
