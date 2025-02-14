@@ -93,7 +93,8 @@ const uploadFileToS3 = async (filePath, key) => {
     Body: fileContent,
   };
   await s3Client.send(new PutObjectCommand(uploadParams));
-  return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+  return key;
+  //return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
 };
 
 const createAzureContainer = async (containerClient) => {
